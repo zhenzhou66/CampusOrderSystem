@@ -1,9 +1,10 @@
-#include "../include/MenuBST.hpp"
+#include "../Classes/MenuBST.hpp"
 #include <iostream>
 
 // ============================================================
 // Implementation skeleton only - NO working logic provided.
 // Follow the pseudocode comments in MenuBST.hpp for each function.
+// This is teammate territory - fill in the TODOs below.
 // ============================================================
 
 MenuBST::MenuBST() {

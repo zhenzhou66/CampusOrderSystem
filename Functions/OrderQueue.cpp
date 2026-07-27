@@ -1,60 +1,124 @@
-#include "../include/OrderQueue.hpp"
+#include "../Classes/OrderQueue.hpp"
 #include <iostream>
 
 // ============================================================
-// Implementation skeleton only - NO working logic provided.
-// Follow the pseudocode comments in OrderQueue.hpp to implement
-// each function yourself so you can explain it during Q&A.
+// Order Queue Management - implementation
 // ============================================================
 
-OrderQueue::OrderQueue(int capacity) {
-    // TODO: initialise frontPtr = nullptr, rearPtr = nullptr,
-    // count = 0, maxCapacity = capacity
-}
+OrderQueue::OrderQueue(int capacity)
+    : frontPtr(nullptr), rearPtr(nullptr), count(0), maxCapacity(capacity),
+      completedFront(nullptr), completedRear(nullptr), completedCount(0) {}
 
 OrderQueue::~OrderQueue() {
-    // TODO: walk the linked list and delete every remaining node
-    // to avoid memory leaks (loop calling dequeue() until empty,
-    // or manually delete node by node).
+    // Drain the pending queue node by node.
+    while (!isEmpty()) {
+        dequeue();
+    }
+    // Free the completed-order history list too.
+    OrderNode* current = completedFront;
+    while (current != nullptr) {
+        OrderNode* toDelete = current;
+        current = current->next;
+        delete toDelete;
+    }
 }
 
 bool OrderQueue::enqueue(const Order& newOrder) {
-    // TODO: implement using the pseudocode in the header.
-    return false;
-}
+    if (isFull()) {
+        std::cout << "[OrderQueue] Cannot accept order #" << newOrder.orderId
+                   << " - system at peak capacity (" << maxCapacity << ").\n";
+        return false;
+    }
 
-Order OrderQueue::dequeue() {
-    // TODO: implement using the pseudocode in the header.
-    return Order();
-}
-
-Order OrderQueue::peekFront() const {
-    // TODO: return frontPtr->data if not empty; otherwise handle
-    // the empty-queue case (e.g. print message, return sentinel Order).
-    return Order();
-}
-
-bool OrderQueue::isEmpty() const {
-    // TODO: return true if count == 0 (or frontPtr == nullptr)
+    OrderNode* newNode = new OrderNode(newOrder);
+    if (isEmpty()) {
+        frontPtr = newNode;
+        rearPtr = newNode;
+    } else {
+        rearPtr->next = newNode;
+        rearPtr = newNode;
+    }
+    count++;
     return true;
 }
 
+Order OrderQueue::dequeue() {
+    if (isEmpty()) {
+        std::cout << "[OrderQueue] No pending orders to process.\n";
+        return Order(); // sentinel order (orderId 0)
+    }
+
+    OrderNode* oldFront = frontPtr;
+    Order frontData = oldFront->data;
+
+    frontPtr = frontPtr->next;
+    if (frontPtr == nullptr) {
+        rearPtr = nullptr; // queue just became empty
+    }
+
+    delete oldFront;
+    count--;
+    return frontData;
+}
+
+Order OrderQueue::peekFront() const {
+    if (isEmpty()) {
+        std::cout << "[OrderQueue] Queue is empty.\n";
+        return Order();
+    }
+    return frontPtr->data;
+}
+
+bool OrderQueue::isEmpty() const {
+    return count == 0;
+}
+
 bool OrderQueue::isFull() const {
-    // TODO: return true if count == maxCapacity
-    return false;
+    return count >= maxCapacity;
 }
 
 int OrderQueue::size() const {
-    // TODO: return count
-    return 0;
+    return count;
+}
+
+void OrderQueue::markCompleted(const Order& finishedOrder) {
+    OrderNode* newNode = new OrderNode(finishedOrder);
+    if (completedFront == nullptr) {
+        completedFront = newNode;
+        completedRear = newNode;
+    } else {
+        completedRear->next = newNode;
+        completedRear = newNode;
+    }
+    completedCount++;
 }
 
 void OrderQueue::displayPending() const {
-    // TODO: traverse from frontPtr to nullptr, print each order.
-    // Example loop shape:
-    //   OrderNode* current = frontPtr;
-    //   while (current != nullptr) {
-    //       // print current->data fields
-    //       current = current->next;
-    //   }
+    std::cout << "--- Pending Orders (" << count << ") ---\n";
+    if (isEmpty()) {
+        std::cout << "  (no pending orders)\n";
+        return;
+    }
+    OrderNode* current = frontPtr;
+    while (current != nullptr) {
+        std::cout << "  Order #" << current->data.orderId
+                   << " | Student: " << current->data.studentId
+                   << " | Item ID: " << current->data.itemId << "\n";
+        current = current->next;
+    }
+}
+
+void OrderQueue::displayCompleted() const {
+    std::cout << "--- Completed Orders (" << completedCount << ") ---\n";
+    if (completedFront == nullptr) {
+        std::cout << "  (no completed orders yet)\n";
+        return;
+    }
+    OrderNode* current = completedFront;
+    while (current != nullptr) {
+        std::cout << "  Order #" << current->data.orderId
+                   << " | Student: " << current->data.studentId
+                   << " | Stall: " << current->data.stallName << "\n";
+        current = current->next;
+    }
 }

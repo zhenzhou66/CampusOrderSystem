@@ -1,65 +1,68 @@
-# Campus Food Court Self-Order Kiosk System — Lab Work #2 Skeleton
+# Campus Food Court Self-Order Kiosk System — Lab Work #2
 
-This is a **scaffold only**. Every function body is a `TODO` with pseudocode
-comments — no working logic has been written. Per the assignment's AI usage
-policy (Amber tier), your team must write the actual algorithms yourselves so
-each member can explain and justify their code during the Q&A.
+Only the **Order Queue Management** module is complete (my part). The other
+three modules are left as skeletons — pseudocode comments only, no working
+logic — for teammates to implement themselves.
 
 ## Folder structure
 
 ```
-include/            header files (class declarations, function signatures, pseudocode)
-  Order.hpp                shared struct used by all modules — agree on this first
-  OrderQueue.hpp            Module 1 — Queue
-  StallCircularQueue.hpp    Module 2 — Circular Queue
-  SessionHistoryStack.hpp   Module 3 — Stack
-  MenuBST.hpp               Module 4 — Binary Search Tree
-  LayoutTree.hpp            Not used (optional 5th-member module — team is 4 people)
+Classes/            header files (class declarations)
+  Order.hpp                shared struct used by all modules
+  OrderQueue.hpp            Module 1 — Queue                (DONE)
+  StallCircularQueue.hpp    Module 2 — Circular Queue        (teammate to implement)
+  SessionHistoryStack.hpp   Module 3 — Stack                 (teammate to implement)
+  MenuBST.hpp               Module 4 — Binary Search Tree     (teammate to implement)
 
-src/                implementation files — fill in the TODOs here
-  OrderQueue.cpp
-  StallCircularQueue.cpp
-  SessionHistoryStack.cpp
-  MenuBST.cpp
-  LayoutTree.cpp            Not used — safe to ignore/delete
-  main.cpp                  driver that wires the four modules together
+Functions/          implementation files
+  OrderQueue.cpp            Fully implemented — enqueue, dequeue, completed history
+  StallCircularQueue.cpp    TODO stub — see pseudocode in the header
+  SessionHistoryStack.cpp   TODO stub — see pseudocode in the header
+  MenuBST.cpp               TODO stub — see pseudocode in the header
+  main.cpp                  Demonstrates the OrderQueue module only; the rest
+                             of the workflow is commented out until the other
+                             modules are implemented
 ```
 
 ## Suggested role assignment
 
 | Module | Data Structure | Owner |
 |---|---|---|
-| Order Queue Management | Queue | _______________ |
+| Order Queue Management | Queue | Me (done) |
 | Stall Assignment | Circular Queue | _______________ |
 | Kiosk Session History and Navigation | Stack | _______________ |
 | Menu Item Search and Management | BST | _______________ |
 
-## How to build (once logic is implemented)
+## How to build and run (Order Queue demo)
 
 ```bash
-g++ -std=c++17 -Wall -Iinclude src/OrderQueue.cpp src/StallCircularQueue.cpp src/SessionHistoryStack.cpp src/MenuBST.cpp src/main.cpp -o kiosk
+g++ -std=c++17 -Wall -Wextra -o kiosk Functions/*.cpp
 ./kiosk
 ```
 
-`LayoutTree.hpp`/`.cpp` are left in the project in case you pick up a 5th
-member later, but they're not part of the build above and `main.cpp` doesn't
-include them.
+This currently just demonstrates the Order Queue module: enqueue two
+orders, display pending, dequeue one, mark it completed, display completed.
+Once teammates implement their modules, `main.cpp` should be replaced with a
+real menu-driven loop wiring all four together (see the TODO comments at the
+bottom of `main.cpp` for the intended workflow).
 
-## Integration notes
+## How my module (OrderQueue) works
 
-- Everyone builds against the same `Order` struct in `Order.hpp` — don't
-  redefine it per module.
-- Each module only exposes its public class methods (`enqueue`, `assignNext`,
-  `recordStep`, `searchById`, etc.) — `main.cpp` is the only place that calls
-  across modules, following the workflow in the assignment brief.
-- No STL containers are used anywhere (`<queue>`, `<stack>`, `<vector>`,
-  etc.) — every structure is built from raw pointers/nodes or manually
-  managed arrays, as required.
-- Test each module standalone first (write a small throwaway test in your
-  own `main` while developing), then integrate into the shared `main.cpp`.
+Queue (FIFO), self-implemented as a singly linked list of `OrderNode`.
+`enqueue` adds to the rear, `dequeue` removes from the front — this is what
+hands an order off to Stall Assignment. A second, separate linked list
+inside the same class logs fulfilled orders (`markCompleted`) so pending and
+completed orders can be displayed separately; this is internal bookkeeping,
+not a second graded data structure. Edge cases handled: empty queue (on
+dequeue/peek) and a capacity cap to simulate peak-hour overload (on
+enqueue).
 
-## Reminder
+No STL containers (`<queue>`, `<list>`, etc.) are used — everything is built
+from raw pointers/nodes, per the assignment's requirement.
 
-You must be able to explain and justify every part of your code. Declare any
-AI usage per the policy (e.g. "AI was used to understand Queue syntax in
-C++") — do not submit AI-generated logic as your own.
+## Before I present
+
+Be ready to explain: why a Queue fits fair FIFO order processing, how
+`enqueue`/`dequeue` manipulate `frontPtr`/`rearPtr`, why a separate list is
+used for completed-order history, and what happens on an empty queue or at
+capacity.

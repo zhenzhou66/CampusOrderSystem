@@ -1,8 +1,8 @@
-#include "../include/Order.hpp"
-#include "../include/OrderQueue.hpp"
-#include "../include/StallCircularQueue.hpp"
-#include "../include/SessionHistoryStack.hpp"
-#include "../include/MenuBST.hpp"
+#include "../Classes/Order.hpp"
+#include "../Classes/OrderQueue.hpp"
+#include "../Classes/StallCircularQueue.hpp"
+#include "../Classes/SessionHistoryStack.hpp"
+#include "../Classes/MenuBST.hpp"
 #include <iostream>
 
 // ============================================================
@@ -10,17 +10,19 @@
 // the FULL SYSTEM WORKFLOW from the assignment brief:
 //
 //   1. A student scans their ID at the kiosk
-//   2. A new order is created and queued for processing   -> OrderQueue
-//   3. A stall is assigned via rotating allocation         -> StallCircularQueue
-//   4. The system locates the requested menu item          -> MenuBST
-//   5. Session steps are recorded as the student navigates  -> SessionHistoryStack
-//   6. The student can navigate backwards through history   -> SessionHistoryStack
-//   7. The order is marked fulfilled and removed from queue -> OrderQueue
+//   2. A new order is created and queued for processing   -> OrderQueue (done)
+//   3. A stall is assigned via rotating allocation         -> StallCircularQueue (TODO - teammate)
+//   4. The system locates the requested menu item          -> MenuBST (TODO - teammate)
+//   5. Session steps are recorded as the student navigates  -> SessionHistoryStack (TODO - teammate)
+//   6. The student can navigate backwards through history   -> SessionHistoryStack (TODO - teammate)
+//   7. The order is marked fulfilled and removed from queue -> OrderQueue (done)
 //
-// This file should NOT contain module-specific logic itself -
-// it only calls the public methods each module exposes. Build a
-// simple menu-driven loop around these calls once your modules
-// are implemented.
+// Only the OrderQueue module (Order Queue Management) has been
+// implemented here. The other three modules are left as skeletons
+// for teammates to complete. This file should NOT contain
+// module-specific logic itself - it only calls the public methods
+// each module exposes. Build a menu-driven loop once every module
+// is implemented.
 // ============================================================
 
 int main() {
@@ -31,51 +33,50 @@ int main() {
     SessionHistoryStack sessionHistory(50);
     MenuBST menu;
 
-    // TODO (team, setup): register real stalls, e.g.
+    // TODO (teammate, Stall Assignment): register real stalls, e.g.
     //   stallQueue.addStall(0, "Malay Stall");
     //   stallQueue.addStall(1, "Chinese Stall");
     //   stallQueue.addStall(2, "Western Stall");
     //   stallQueue.addStall(3, "Beverage Stall");
 
-    // TODO (team, setup): seed the menu with sample items, e.g.
+    // TODO (teammate, Menu Search): seed the menu with sample items, e.g.
     //   menu.insertItem(MenuItem(101, "Nasi Lemak", "Malay Stall", 6.50));
     //   menu.insertItem(MenuItem(102, "Char Kway Teow", "Chinese Stall", 7.00));
 
     std::cout << "=== Campus Food Court Self-Order Kiosk (Prototype) ===\n";
 
-    // TODO (team): replace this single hard-coded pass with a real
-    // menu-driven loop (e.g. switch/case on user input) that lets a
-    // "student" repeatedly: browse menu, place order, undo, view status, exit.
+    // --- Demo of the completed Order Queue module ---
+    Order orderA(1, "TP012345", 101);
+    Order orderB(2, "TP099999", 103);
 
-    // --- Example single workflow pass (fill in with real calls) ---
+    orderQueue.enqueue(orderA);
+    orderQueue.enqueue(orderB);
+    orderQueue.displayPending();
 
-    // Step 1-2: student scans ID -> create + enqueue order
-    // Order newOrder(1, "TP0123456", /*itemId*/ 101);
-    // orderQueue.enqueue(newOrder);
-    // sessionHistory.recordStep(SessionStep("Order created, queued"));
+    Order processed = orderQueue.dequeue();
+    std::cout << "Dequeued order #" << processed.orderId
+               << " for processing.\n";
+    orderQueue.displayPending();
 
-    // Step 3: assign a stall via rotation
-    // Order current = orderQueue.dequeue();
-    // stallQueue.assignNext(current);
-    // sessionHistory.recordStep(SessionStep("Assigned to stall: " + current.stallName));
+    // Normally the Stall Assignment module would assign a stall here,
+    // e.g.:
+    //   stallQueue.assignNext(processed);
+    // and once fulfilled:
+    //   processed.status = OrderStatus::FULFILLED;
+    processed.status = OrderStatus::FULFILLED;
+    orderQueue.markCompleted(processed);
+    orderQueue.displayCompleted();
 
-    // Step 4: look up the requested item
-    // MenuItem* item = menu.searchById(current.itemId);
-    // if (item != nullptr) { /* display item details */ }
+    // TODO (team): once Stall Assignment, Session History, and Menu Search
+    // are implemented, replace the demo above with a real menu-driven loop
+    // that walks through the full workflow:
+    //   1-2. scan ID -> orderQueue.enqueue()
+    //   3.   stallQueue.assignNext()
+    //   4.   menu.searchById()
+    //   5-6. sessionHistory.recordStep() / undoLastStep()
+    //   7.   orderQueue.markCompleted()
 
-    // Step 5-6: record further session steps / demonstrate undo
-    // sessionHistory.recordStep(SessionStep("Reviewed order summary"));
-    // SessionStep lastStep = sessionHistory.undoLastStep();  // demo back navigation
-
-    // Step 7: mark fulfilled (update status, order already left the active queue)
-    // current.status = OrderStatus::FULFILLED;
-
-    // TODO (team): print final state of each module for the demo, e.g.
-    //   orderQueue.displayPending();
-    //   stallQueue.displayStallStatus();
-    //   menu.displaySorted();
-    //   sessionHistory.displayHistory();
-
-    std::cout << "Prototype skeleton ready. Implement the TODOs above.\n";
+    std::cout << "\nOrder Queue module demo complete. Other modules "
+                 "still need to be implemented by the team.\n";
     return 0;
 }

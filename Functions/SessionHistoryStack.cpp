@@ -1,47 +1,70 @@
-#include "../Classes/SessionHistoryStack.hpp"
-#include <iostream>
+#include "SessionHistoryStack.hpp"
 
-// ============================================================
-// Implementation skeleton only - NO working logic provided.
-// Follow the pseudocode comments in SessionHistoryStack.hpp.
-// This is teammate territory - fill in the TODOs below.
-// ============================================================
+using namespace std;
 
 SessionHistoryStack::SessionHistoryStack(int limit) {
-    // TODO: topPtr = nullptr; count = 0; maxSteps = limit;
     topPtr = nullptr;
     count = 0;
     maxSteps = limit;
 }
 
 SessionHistoryStack::~SessionHistoryStack() {
-    // TODO: pop until empty, deleting each node (avoid memory leaks)
+    while (topPtr != nullptr) {
+        StepNode* temp = topPtr;
+        topPtr = topPtr->next;
+        delete temp;
+    }
 }
 
 void SessionHistoryStack::recordStep(const SessionStep& step) {
-    // TODO: implement using the pseudocode in the header.
+    if (count == maxSteps) {
+        cout << "Session step limit (" << maxSteps
+             << ") reached — cannot record further steps." << endl;
+        return;
+    }
+
+    StepNode* newNode = new StepNode(step);
+    newNode->next = topPtr;
+    topPtr = newNode;
+    count++;
 }
 
 SessionStep SessionHistoryStack::undoLastStep() {
-    // TODO: implement using the pseudocode in the header.
-    return SessionStep();
+    if (isEmpty()) {
+        cout << "Session history is empty — cannot undo further." << endl;
+        return SessionStep("No previous step");
+    }
+
+    SessionStep saved = topPtr->data;
+    StepNode* temp = topPtr;
+    topPtr = topPtr->next;
+    delete temp;
+    count--;
+
+    return saved;
 }
 
 SessionStep SessionHistoryStack::currentState() const {
-    // TODO: return topPtr->data if not empty; else handle empty case
-    return SessionStep();
+    if (isEmpty()) {
+        return SessionStep("No active session");
+    }
+    return topPtr->data;
 }
 
 bool SessionHistoryStack::isEmpty() const {
-    // TODO: return count == 0
-    return true;
+    return count == 0;
 }
 
 int SessionHistoryStack::size() const {
-    // TODO: return count
-    return 0;
+    return count;
 }
 
 void SessionHistoryStack::displayHistory() const {
-    // TODO: traverse from topPtr to nullptr, printing each step's description
+    cout << "\n--- Session History (most recent -> oldest) ---" << endl;
+    StepNode* temp = topPtr;
+    while (temp != nullptr) {
+        cout << "  " << temp->data.description << endl;
+        temp = temp->next;
+    }
+    cout << "List ended here!" << endl;
 }

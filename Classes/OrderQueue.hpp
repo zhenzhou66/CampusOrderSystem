@@ -3,21 +3,6 @@
 
 #include "Order.hpp"
 
-// ============================================================
-// MODULE 1: Order Queue Management
-// Data Structure: Queue (FIFO) - self-implemented, linked-list based
-//
-// Functional requirements this class satisfies:
-//   - Accept and record new student orders
-//   - Maintain an ordered list of all incoming requests
-//   - Process orders sequentially by arrival time
-//   - Remove an order once it has been assigned to a stall
-//   - Display pending orders / completed order history
-//   - Handle empty-queue and overload edge cases
-//
-// NOTE: No STL containers (<queue>, <list>, etc.) used.
-// The queue is built from a singly linked list of OrderNode.
-// ============================================================
 
 struct OrderNode {
     Order data;
@@ -33,10 +18,6 @@ private:
     int count;             // current number of pending orders
     int maxCapacity;       // cap used to simulate peak-hour "system overload"
 
-    // Separate linked list acting as a log of fulfilled orders.
-    // This is NOT a second data structure being "justified" for marks -
-    // it is just internal bookkeeping for the same Queue module so the
-    // "completed order history" output requirement can be met.
     OrderNode* completedFront;
     OrderNode* completedRear;
     int completedCount;

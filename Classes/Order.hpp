@@ -3,16 +3,6 @@
 
 #include <string>
 
-// ============================================================
-// Shared Order type
-// ------------------------------------------------------------
-// Every module (Queue, Circular Queue, Stack, BST, Tree) passes
-// this SAME struct around so the four/five modules can plug into
-// one prototype without needing to know each other's internals.
-//
-// Agree on this struct as a TEAM before anyone starts coding their
-// own module - do not let each member invent their own version.
-// ============================================================
 
 enum class OrderStatus {
     PENDING,     // waiting in the Order Queue
@@ -27,8 +17,6 @@ struct Order {
     int itemId;          // links to a MenuItem in the BST
     std::string stallName;    // filled in once StallCircularQueue assigns it
     OrderStatus status;
-    // TODO (team): add any extra fields your modules need,
-    // e.g. timestamp, quantity, counter/zone location, etc.
 
     Order()
         : orderId(0), studentId(""), itemId(-1),

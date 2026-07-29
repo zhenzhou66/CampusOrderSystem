@@ -3,20 +3,18 @@
 
 #include <string>
 
-// ============================================================
 // MODULE 4: Menu Item Search and Management
-// Owner: ____________________ (fill in team member name)
+// Owner: Gubaeva Liliia
 // Data Structure: Binary Search Tree - self-implemented
-//
-// Functional requirements this class must satisfy:
+// Functional requirements:
 //   - Store item details: Item ID, name, stall, price
 //   - Insert new menu items
-//   - Search by Item ID (BST key) - and optionally by name/category
+//   - Search by Item ID (BST) and by name/category
 //   - Update or remove item records
 //   - Display items in sorted (in-order) format
 //
 // Suggested key: itemId (keeps BST ordering simple and unambiguous).
-// ============================================================
+
 
 struct MenuItem {
     int itemId;

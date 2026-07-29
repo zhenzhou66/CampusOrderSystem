@@ -1,0 +1,12 @@
+# Compiled binaries
+kiosk
+test_menu
+*.o
+*.out
+a.out
+
+# Personal test 
+Functions/test_MenuBST.cpp
+
+# Editor/IDE
+.vscode/

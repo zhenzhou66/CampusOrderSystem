@@ -5,16 +5,8 @@
 #include <string>
 
 // ============================================================
-// MODULE 2: Stall Assignment
-// Owner: ____________________ (fill in team member name)
+// TASK 2: Stall Assignment
 // Data Structure: Circular Queue - self-implemented, fixed-size array
-//
-// Functional requirements this class must satisfy:
-//   - Maintain a list of all stalls and their status (available/busy/closed)
-//   - Assign incoming orders to stalls in continuous rotation
-//   - Skip stalls that are currently closed or at capacity
-//   - Track order assignments per stall
-//   - Rotate without restarting the cycle (classic circular queue index wrap)
 // ============================================================
 
 enum class StallStatus {
@@ -26,48 +18,52 @@ enum class StallStatus {
 struct Stall {
     std::string name;
     StallStatus status;
-    int ordersHandled;   // running count, for "track assignments per stall"
+    int ordersHandled;   // Running count, for "Track Assignments per Stall"
 
     Stall() : name(""), status(StallStatus::AVAILABLE), ordersHandled(0) {}
     Stall(const std::string& n) : name(n), status(StallStatus::AVAILABLE), ordersHandled(0) {}
 };
 
+// Records which order went to which stall. A simple self-built log, stored in its own fixed-size circular buffer.
+struct AssignmentRecord {
+    int orderId;
+    std::string stallName;
+
+    AssignmentRecord() : orderId(-1), stallName("") {}
+    AssignmentRecord(int id, const std::string& s) : orderId(id), stallName(s) {}
+};
+
 class StallCircularQueue {
-private:
-    Stall* stalls;        // fixed-size array of stalls (the "circle")
-    int capacity;          // total number of stalls
-    int currentIndex;      // rotation pointer - where we left off last time
+    private:
+        Stall* stalls;          // Fixed-size array of stalls (Loop)
+        int capacity;           // Total number of stalls
+        int currentIndex;       // Rotation pointer - where its left off last time
 
-    // TODO (team): decide if you need a separate array/queue to store
-    // "order -> stall" assignment history for the "track assignments" requirement.
+        AssignmentRecord* assignmentHistory; // Log of order-> Stall assignments
+        int assignmentCapacity;              // Max records the log can hold
+        int assignmentCount;                 // Total assignments made so far (Wraps around assignmentCapacity)
 
-public:
-    StallCircularQueue(int numStalls);
-    ~StallCircularQueue();
+        std::string statusToString(StallStatus s) const;
 
-    // Register a stall name at a given slot when the system starts up.
-    void addStall(int index, const std::string& name);
+    public:
+        // maxAssignments defaults to 500 so existing calls like StallCircularQueue stallQueue(4); still compile unchanged
+        StallCircularQueue(int numStalls, int maxAssignments = 500);
+        ~StallCircularQueue();
 
-    // Finds the next AVAILABLE stall starting from currentIndex, wrapping
-    // around the array, and assigns the given order to it.
-    // Pseudocode:
-    //   1. Start scanning from currentIndex
-    //   2. Loop at most `capacity` times (to avoid infinite loop if all closed):
-    //        a. If stalls[currentIndex].status == AVAILABLE:
-    //             - assign order.stallName = stalls[currentIndex].name
-    //             - stalls[currentIndex].ordersHandled++
-    //             - advance currentIndex = (currentIndex + 1) % capacity
-    //             - return true (assigned)
-    //        b. Else: currentIndex = (currentIndex + 1) % capacity; continue
-    //   3. If loop completes with no available stall -> handle "all stalls
-    //      busy/closed" edge case, return false
-    bool assignNext(Order& order);
+        // Register a stall name at a given slot when the system starts up
+        void addStall(int index, const std::string& name);
 
-    // Manually mark a stall open/closed/busy (e.g. lunch rush, staff break).
-    void setStallStatus(int index, StallStatus newStatus);
+        // Finds the next AVAILABLE stall starting from currentIndex, wrapping around the array, and assigns the given order to it
+        bool assignNext(Order& order);
 
-    // Prints every stall's name, status, and orders handled so far.
-    void displayStallStatus() const;
+        // Manually mark a stall as open/closed/busy (e.g. lunch rush, staff break)
+        void setStallStatus(int index, StallStatus newStatus);
+
+        // Prints every stall's name, status, and orders handled so far
+        void displayStallStatus() const;
+
+        // Prints the full order -> Stall assignment log
+        void displayAssignmentHistory() const;
 };
 
 #endif // STALL_CIRCULAR_QUEUE_HPP

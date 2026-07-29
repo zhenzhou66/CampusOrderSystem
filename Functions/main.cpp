@@ -29,15 +29,14 @@ int main() {
 
     // --- Setup phase (run once at program start) ---
     OrderQueue orderQueue(100);
-    StallCircularQueue stallQueue(4);       // e.g. Malay, Chinese, Western, +1
+    StallCircularQueue stallQueue(4);       // e.g. Malay, Chinese, Western, Beverage
     SessionHistoryStack sessionHistory(50);
     MenuBST menu;
 
-    // TODO (teammate, Stall Assignment): register real stalls, e.g.
-    //   stallQueue.addStall(0, "Malay Stall");
-    //   stallQueue.addStall(1, "Chinese Stall");
-    //   stallQueue.addStall(2, "Western Stall");
-    //   stallQueue.addStall(3, "Beverage Stall");
+    stallQueue.addStall(0, "Malay Stall");
+    stallQueue.addStall(1, "Chinese Stall");
+    stallQueue.addStall(2, "Western Stall");
+    stallQueue.addStall(3, "Beverage Stall");
 
     // TODO (teammate, Menu Search): seed the menu with sample items, e.g.
     //   menu.insertItem(MenuItem(101, "Nasi Lemak", "Malay Stall", 6.50));
@@ -54,18 +53,18 @@ int main() {
     orderQueue.displayPending();
 
     Order processed = orderQueue.dequeue();
-    std::cout << "Dequeued order #" << processed.orderId
-               << " for processing.\n";
+    std::cout << "Dequeued order #" << processed.orderId << " for processing.\n";
     orderQueue.displayPending();
 
-    // Normally the Stall Assignment module would assign a stall here,
-    // e.g.:
-    //   stallQueue.assignNext(processed);
-    // and once fulfilled:
-    //   processed.status = OrderStatus::FULFILLED;
     processed.status = OrderStatus::FULFILLED;
     orderQueue.markCompleted(processed);
     orderQueue.displayCompleted();
+
+    stallQueue.assignNext(processed);
+    std::cout << "Order #" << processed.orderId << " status is now ASSIGNED, handled by " << processed.stallName << ".\n";
+
+    stallQueue.displayStallStatus();
+    stallQueue.displayAssignmentHistory();
 
     // TODO (team): once Stall Assignment, Session History, and Menu Search
     // are implemented, replace the demo above with a real menu-driven loop

@@ -38,7 +38,7 @@ Functions/
 ## How to build and run
 
 bash
-g++ -std=c++17 main.cpp -o food_kiosk.exe
+g++ -std=c++17 main.cpp Functions/*.cpp -o food_kiosk.exe
 ./food_kiosk.exe
 
 This compiles `main.cpp` together with all four module `.cpp` files in

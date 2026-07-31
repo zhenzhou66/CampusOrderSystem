@@ -7,6 +7,7 @@
 #include <string>
 #include <cstdlib>
 #include <limits>
+#include <cctype>
 
 // Clears the terminal screen so old output doesn't pile up.
 // Windows uses "cls", Mac/Linux use "clear" - picked at compile time.
@@ -77,6 +78,26 @@ int readValidatedItemId(const std::string& prompt) {
     }
 }
 
+// Validates a pre-read token as a 3-digit Item ID (100-999). Used inside
+// flows that need to check for a "b" (back) keypress before committing to
+// a numeric read, so it can't just use std::cin >> int directly.
+bool parseItemId(const std::string& token, int& outId) {
+    if (token.empty()) {
+        return false;
+    }
+    for (char c : token) {
+        if (!std::isdigit(static_cast<unsigned char>(c))) {
+            return false;
+        }
+    }
+    long value = std::atol(token.c_str());
+    if (value < 100 || value > 999) {
+        return false;
+    }
+    outId = static_cast<int>(value);
+    return true;
+}
+
 // Reads a non-negative price, reprompting on non-numeric input or a
 // negative value.
 double readValidatedPrice(const std::string& prompt) {
@@ -99,6 +120,14 @@ double readValidatedPrice(const std::string& prompt) {
 // so goBack()/goForward() can tell main() which page to redraw.
 const int STEP_MENU = 0;        // shows the menu AND asks for the food choice
 const int STEP_STUDENT_ID = 1;  // asks for the TP number, then places the order
+
+// --- Menu Management sub-page step IDs (separate range so they never
+// collide with the Place Order flow's step IDs above - both flows push
+// onto the same shared SessionHistoryStack). ---
+const int STEP_MGMT_HOME = 10;    // the Add/Remove/Update/Display submenu
+const int STEP_MGMT_ADD = 11;
+const int STEP_MGMT_REMOVE = 12;
+const int STEP_MGMT_UPDATE = 13;
 
 void runPlaceOrderFlow(MenuBST& menu, OrderQueue& orderQueue,
                         SessionHistoryStack& sessionHistory, int& orderIdCounter) {
@@ -244,6 +273,197 @@ void runOrderQueueFlow(OrderQueue& orderQueue, StallCircularQueue& stallQueue) {
     } while (input != 'F' && input != 'f');
 }
 
+// --- Menu Management sub-page (Menu BST + Session History Stack) ---
+// A submenu with its own back/forward navigation, wired into the SAME
+// SessionHistoryStack the Place Order flow uses - same pattern:
+//   'b' at the home page  -> leave this flow, return to main menu
+//   'b' at Add/Remove/Update -> sessionHistory.goBack() to the home page
+//   'f' at the home page  -> sessionHistory.goForward() to redo the last
+//                            cancelled/back'd-out-of step
+void runMenuManagementFlow(MenuBST& menu, SessionHistoryStack& sessionHistory) {
+    int currentStep = STEP_MGMT_HOME;
+    bool inFlow = true;
+
+    sessionHistory.recordStep(SessionStep("Menu Management: Home", STEP_MGMT_HOME));
+
+    while (inFlow) {
+        clearScreen();
+        std::cout << "\n========================================\n";
+        std::cout << " Menu Management\n";
+        std::cout << "========================================\n";
+
+        if (currentStep == STEP_MGMT_HOME) {
+            std::cout << "(Type 'b' to return to main menu, 'f' to go forward)\n\n";
+            std::cout << "1. Add Menu Item\n";
+            std::cout << "2. Remove Menu Item\n";
+            std::cout << "3. Update Menu Item\n";
+            std::cout << "4. Display Full Menu (sorted by Item ID)\n";
+            std::cout << "Enter your choice: ";
+            std::string input;
+            std::cin >> input;
+
+            if (input == "b" || input == "B") {
+                inFlow = false; // leave the flow, back to main menu
+            } else if (input == "f" || input == "F") {
+                if (sessionHistory.canGoForward()) {
+                    SessionStep s = sessionHistory.goForward();
+                    currentStep = s.stepId;
+                } else {
+                    std::cout << "Nothing to go forward to.\n";
+                    std::cout << "\nPress Enter to continue...";
+                    std::cin.ignore();
+                    std::cin.get();
+                }
+            } else if (input == "1") {
+                currentStep = STEP_MGMT_ADD;
+                sessionHistory.recordStep(SessionStep("Menu Management: Add Item", STEP_MGMT_ADD));
+            } else if (input == "2") {
+                currentStep = STEP_MGMT_REMOVE;
+                sessionHistory.recordStep(SessionStep("Menu Management: Remove Item", STEP_MGMT_REMOVE));
+            } else if (input == "3") {
+                currentStep = STEP_MGMT_UPDATE;
+                sessionHistory.recordStep(SessionStep("Menu Management: Update Item", STEP_MGMT_UPDATE));
+            } else if (input == "4") {
+                menu.displaySorted();
+                sessionHistory.recordStep(SessionStep("Menu Management: Viewed full menu (sorted)"));
+                std::cout << "\nPress Enter to continue...";
+                std::cin.ignore();
+                std::cin.get();
+                // stays at STEP_MGMT_HOME
+            } else {
+                std::cout << "Invalid choice.\n";
+                std::cout << "\nPress Enter to continue...";
+                std::cin.ignore();
+                std::cin.get();
+            }
+        }
+        else if (currentStep == STEP_MGMT_ADD) {
+            std::cout << "(Type 'b' to cancel and go back)\n\n";
+            std::string idToken;
+            std::cout << "Enter new Item ID (100-999), or 'b' to cancel: ";
+            std::cin >> idToken;
+
+            if (idToken == "b" || idToken == "B") {
+                SessionStep s = sessionHistory.goBack();
+                currentStep = s.stepId;
+            } else {
+                int id;
+                if (!parseItemId(idToken, id)) {
+                    std::cout << "-> Invalid Item ID - must be a 3-digit number (100-999), e.g. 101.\n";
+                    std::cout << "\nPress Enter to continue...";
+                    std::cin.ignore();
+                    std::cin.get();
+                    // stay at STEP_MGMT_ADD to retry
+                } else if (menu.searchById(id) != nullptr) {
+                    std::cout << "-> Item ID " << id << " already exists - use 'Update Menu Item' instead.\n";
+                    std::cout << "\nPress Enter to continue...";
+                    std::cin.ignore();
+                    std::cin.get();
+                    currentStep = STEP_MGMT_HOME;
+                } else {
+                    flushInputLine();
+                    std::string name = readNonEmptyLine("Enter item name: ");
+                    std::string stall = readNonEmptyLine("Enter stall name: ");
+                    double price = readValidatedPrice("Enter price (RM): ");
+
+                    menu.insertItem(MenuItem(id, name, stall, price));
+                    std::cout << "-> Added: " << name << " (" << stall << ") - RM " << price
+                               << " [ID " << id << "]\n";
+                    sessionHistory.recordStep(SessionStep("Added menu item: " + name));
+
+                    std::cout << "\nPress Enter to continue...";
+                    std::cin.ignore();
+                    std::cin.get();
+                    currentStep = STEP_MGMT_HOME;
+                }
+            }
+        }
+        else if (currentStep == STEP_MGMT_REMOVE) {
+            std::cout << "(Type 'b' to cancel and go back)\n\n";
+            std::string idToken;
+            std::cout << "Enter Item ID to remove (100-999), or 'b' to cancel: ";
+            std::cin >> idToken;
+
+            if (idToken == "b" || idToken == "B") {
+                SessionStep s = sessionHistory.goBack();
+                currentStep = s.stepId;
+            } else {
+                int id;
+                if (!parseItemId(idToken, id)) {
+                    std::cout << "-> Invalid Item ID - must be a 3-digit number (100-999), e.g. 101.\n";
+                    std::cout << "\nPress Enter to continue...";
+                    std::cin.ignore();
+                    std::cin.get();
+                    // stay at STEP_MGMT_REMOVE to retry
+                } else {
+                    MenuItem* found = menu.searchById(id);
+                    std::string removedName = (found != nullptr) ? found->name : "";
+                    bool removed = menu.removeItem(id);
+
+                    if (removed) {
+                        std::cout << "-> Removed item ID " << id
+                                   << (removedName.empty() ? "" : (" (" + removedName + ")")) << " from the menu.\n";
+                        sessionHistory.recordStep(SessionStep("Removed menu item ID " + std::to_string(id)));
+                    } else {
+                        std::cout << "-> Item ID " << id << " not found - nothing removed.\n";
+                    }
+
+                    std::cout << "\nPress Enter to continue...";
+                    std::cin.ignore();
+                    std::cin.get();
+                    currentStep = STEP_MGMT_HOME;
+                }
+            }
+        }
+        else if (currentStep == STEP_MGMT_UPDATE) {
+            std::cout << "(Type 'b' to cancel and go back)\n\n";
+            std::string idToken;
+            std::cout << "Enter Item ID to update (100-999), or 'b' to cancel: ";
+            std::cin >> idToken;
+
+            if (idToken == "b" || idToken == "B") {
+                SessionStep s = sessionHistory.goBack();
+                currentStep = s.stepId;
+            } else {
+                int id;
+                if (!parseItemId(idToken, id)) {
+                    std::cout << "-> Invalid Item ID - must be a 3-digit number (100-999), e.g. 101.\n";
+                    std::cout << "\nPress Enter to continue...";
+                    std::cin.ignore();
+                    std::cin.get();
+                    // stay at STEP_MGMT_UPDATE to retry
+                } else {
+                    MenuItem* existing = menu.searchById(id);
+                    if (existing == nullptr) {
+                        std::cout << "-> Item ID " << id << " not found - nothing to update. Use 'Add Menu Item' instead.\n";
+                        std::cout << "\nPress Enter to continue...";
+                        std::cin.ignore();
+                        std::cin.get();
+                        currentStep = STEP_MGMT_HOME;
+                    } else {
+                        std::cout << "-> Currently: " << existing->name << " (" << existing->stall
+                                   << ") - RM " << existing->price << "\n";
+                        flushInputLine();
+                        std::string name = readNonEmptyLine("Enter new item name: ");
+                        std::string stall = readNonEmptyLine("Enter new stall name: ");
+                        double price = readValidatedPrice("Enter new price (RM): ");
+
+                        menu.insertItem(MenuItem(id, name, stall, price)); // overwrites in place
+                        std::cout << "-> Updated ID " << id << " to " << name << " (" << stall
+                                   << ") - RM " << price << "\n";
+                        sessionHistory.recordStep(SessionStep("Updated menu item: " + name));
+
+                        std::cout << "\nPress Enter to continue...";
+                        std::cin.ignore();
+                        std::cin.get();
+                        currentStep = STEP_MGMT_HOME;
+                    }
+                }
+            }
+        }
+    }
+}
+
 int main() {
     // --- Setup Phase ---
     OrderQueue orderQueue(100);
@@ -274,13 +494,11 @@ int main() {
         std::cout << "========================================\n";
         std::cout << "\n";
         std::cout << "1. Search Menu Item by ID\n";
-        std::cout << "2. Add Menu Item\n";
-        std::cout << "3. Remove Menu Item\n";
-        std::cout << "4. Display Full Menu (sorted by Item ID)\n";
-        std::cout << "5. Place an Order (Order Queue)\n";
-        std::cout << "6. Order Queue (View & Process Orders)\n";
-        std::cout << "7. View Stall Status History\n";
-        std::cout << "8. Exit System\n";
+        std::cout << "2. Menu Management (Add / Remove / Update / Display)\n";
+        std::cout << "3. Place an Order (Order Queue)\n";
+        std::cout << "4. Order Queue (View & Process Orders)\n";
+        std::cout << "5. View Stall Status History\n";
+        std::cout << "6. Exit System\n";
         std::cout << "Enter your choice: ";
         std::cin >> choice;
 
@@ -298,72 +516,27 @@ int main() {
             waitForMenu();
         }
         else if (choice == 2) {
-            // Add Menu Item (BST insert)
-            int id = readValidatedItemId("Enter new Item ID (3-digit, 100-999): ");
-            flushInputLine(); // drop the leftover '\n' before getline()
-
-            std::string name = readNonEmptyLine("Enter item name: ");
-            std::string stall = readNonEmptyLine("Enter stall name: ");
-
-            double price = readValidatedPrice("Enter price (RM): ");
-
-            bool existedBefore = (menu.searchById(id) != nullptr);
-            menu.insertItem(MenuItem(id, name, stall, price));
-
-            if (existedBefore) {
-                std::cout << "-> Item ID " << id << " already existed - record updated to "
-                           << name << " (" << stall << ") - RM " << price << "\n";
-            } else {
-                std::cout << "-> Added: " << name << " (" << stall << ") - RM " << price
-                           << " [ID " << id << "]\n";
-            }
-            sessionHistory.recordStep(SessionStep("Added/updated menu item: " + name));
-            waitForMenu();
+            runMenuManagementFlow(menu, sessionHistory);
         }
         else if (choice == 3) {
-            // Remove Menu Item (BST delete) 
-            int id;
-            std::cout << "Enter Item ID to remove: ";
-            std::cin >> id;
-
-            MenuItem* found = menu.searchById(id);
-            std::string removedName = (found != nullptr) ? found->name : "";
-
-            bool removed = menu.removeItem(id);
-            if (removed) {
-                std::cout << "-> Removed item ID " << id
-                           << (removedName.empty() ? "" : (" (" + removedName + ")")) << " from the menu.\n";
-                sessionHistory.recordStep(SessionStep("Removed menu item ID " + std::to_string(id)));
-            } else {
-                std::cout << "-> Item ID " << id << " not found - nothing removed.\n";
-            }
-            waitForMenu();
-        }
-        else if (choice == 4) {
-            // Display Full Menu (BST in-order traversal) 
-            menu.displaySorted();
-            sessionHistory.recordStep(SessionStep("Viewed full menu (sorted)"));
-            waitForMenu();
-        }
-        else if (choice == 5) {
             runPlaceOrderFlow(menu, orderQueue, sessionHistory, orderIdCounter);
         }
-        else if (choice == 6) {
+        else if (choice == 4) {
             runOrderQueueFlow(orderQueue, stallQueue);
         }
-        else if (choice == 7) {
+        else if (choice == 5) {
             stallQueue.displayStallStatus();
             stallQueue.displayAssignmentHistory();
             waitForMenu();
         }
-        else if (choice == 8) {
+        else if (choice == 6) {
             std::cout << "\nExiting kiosk system. Thank you!\n";
         }
         else {
-            std::cout << "Invalid choice. Please enter a number between 1 and 8.\n";
+            std::cout << "Invalid choice. Please enter a number between 1 and 6.\n";
         }
 
-    } while (choice != 8);
+    } while (choice != 6);
 
     return 0;
 }

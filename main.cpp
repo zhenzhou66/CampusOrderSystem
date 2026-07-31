@@ -6,6 +6,7 @@
 #include <iostream>
 #include <string>
 #include <cstdlib>
+#include <limits>
 
 // Clears the terminal screen so old output doesn't pile up.
 // Windows uses "cls", Mac/Linux use "clear" - picked at compile time.
@@ -24,6 +25,73 @@ void waitForMenu() {
         std::cout << "\nEnter 'F' to go back to main menu: ";
         std::cin >> input;
     } while (input != 'F' && input != 'f');
+}
+
+// Flushes the rest of the current input line so a std::getline() call
+// right after a std::cin >> (int/word) doesn't just pick up a leftover '\n'.
+void flushInputLine() {
+    std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
+}
+
+// Reads a full line of text (names/stalls can contain spaces), reprompting
+// on an empty entry.
+std::string readNonEmptyLine(const std::string& prompt) {
+    std::string value;
+    do {
+        std::cout << prompt;
+        std::getline(std::cin, value);
+    } while (value.empty());
+    return value;
+}
+
+// Reads an int, reprompting on non-numeric input (e.g. letters/symbols)
+// instead of leaving std::cin in a broken fail state.
+int readValidatedInt(const std::string& prompt) {
+    int value;
+    while (true) {
+        std::cout << prompt;
+        if (std::cin >> value) {
+            return value;
+        }
+        std::cout << "-> Invalid input - please enter a whole number.\n";
+        std::cin.clear();
+        flushInputLine();
+    }
+}
+
+// Reads a Menu Item ID, reprompting unless it's a 3-digit whole number
+// (100-999), e.g. 101, 250, 999. Rejects letters, negatives, and IDs that
+// are too short (< 100) or too long (> 999).
+int readValidatedItemId(const std::string& prompt) {
+    int value;
+    while (true) {
+        std::cout << prompt;
+        if (std::cin >> value && value >= 100 && value <= 999) {
+            return value;
+        }
+        if (std::cin.fail()) {
+            std::cin.clear();
+            flushInputLine();
+        }
+        std::cout << "-> Invalid input - Item ID must be a 3-digit number (100-999), e.g. 101.\n";
+    }
+}
+
+// Reads a non-negative price, reprompting on non-numeric input or a
+// negative value.
+double readValidatedPrice(const std::string& prompt) {
+    double value;
+    while (true) {
+        std::cout << prompt;
+        if (std::cin >> value && value >= 0.0) {
+            return value;
+        }
+        if (std::cin.fail()) {
+            std::cin.clear();
+            flushInputLine();
+        }
+        std::cout << "-> Invalid input - please enter a price of 0 or higher (e.g. 6.50).\n";
+    }
 }
 
 // --- Place an Order sub-page ---
@@ -198,7 +266,7 @@ int main() {
     int choice = 0;
     int orderIdCounter = 1;
 
-    // --- Interactive Kiosk Loop ---
+    // Interactive Kiosk Loop 
     do {
         clearScreen();
         std::cout << "\n========================================\n";
@@ -206,10 +274,13 @@ int main() {
         std::cout << "========================================\n";
         std::cout << "\n";
         std::cout << "1. Search Menu Item by ID\n";
-        std::cout << "2. Place an Order (Order Queue)\n";
-        std::cout << "3. Order Queue (View & Process Orders)\n";
-        std::cout << "4. View Stall Status History\n";
-        std::cout << "5. Exit System\n";
+        std::cout << "2. Add Menu Item\n";
+        std::cout << "3. Remove Menu Item\n";
+        std::cout << "4. Display Full Menu (sorted by Item ID)\n";
+        std::cout << "5. Place an Order (Order Queue)\n";
+        std::cout << "6. Order Queue (View & Process Orders)\n";
+        std::cout << "7. View Stall Status History\n";
+        std::cout << "8. Exit System\n";
         std::cout << "Enter your choice: ";
         std::cin >> choice;
 
@@ -227,24 +298,72 @@ int main() {
             waitForMenu();
         }
         else if (choice == 2) {
-            runPlaceOrderFlow(menu, orderQueue, sessionHistory, orderIdCounter);
+            // Add Menu Item (BST insert)
+            int id = readValidatedItemId("Enter new Item ID (3-digit, 100-999): ");
+            flushInputLine(); // drop the leftover '\n' before getline()
+
+            std::string name = readNonEmptyLine("Enter item name: ");
+            std::string stall = readNonEmptyLine("Enter stall name: ");
+
+            double price = readValidatedPrice("Enter price (RM): ");
+
+            bool existedBefore = (menu.searchById(id) != nullptr);
+            menu.insertItem(MenuItem(id, name, stall, price));
+
+            if (existedBefore) {
+                std::cout << "-> Item ID " << id << " already existed - record updated to "
+                           << name << " (" << stall << ") - RM " << price << "\n";
+            } else {
+                std::cout << "-> Added: " << name << " (" << stall << ") - RM " << price
+                           << " [ID " << id << "]\n";
+            }
+            sessionHistory.recordStep(SessionStep("Added/updated menu item: " + name));
+            waitForMenu();
         }
         else if (choice == 3) {
-            runOrderQueueFlow(orderQueue, stallQueue);
+            // Remove Menu Item (BST delete) 
+            int id;
+            std::cout << "Enter Item ID to remove: ";
+            std::cin >> id;
+
+            MenuItem* found = menu.searchById(id);
+            std::string removedName = (found != nullptr) ? found->name : "";
+
+            bool removed = menu.removeItem(id);
+            if (removed) {
+                std::cout << "-> Removed item ID " << id
+                           << (removedName.empty() ? "" : (" (" + removedName + ")")) << " from the menu.\n";
+                sessionHistory.recordStep(SessionStep("Removed menu item ID " + std::to_string(id)));
+            } else {
+                std::cout << "-> Item ID " << id << " not found - nothing removed.\n";
+            }
+            waitForMenu();
         }
         else if (choice == 4) {
+            // Display Full Menu (BST in-order traversal) 
+            menu.displaySorted();
+            sessionHistory.recordStep(SessionStep("Viewed full menu (sorted)"));
+            waitForMenu();
+        }
+        else if (choice == 5) {
+            runPlaceOrderFlow(menu, orderQueue, sessionHistory, orderIdCounter);
+        }
+        else if (choice == 6) {
+            runOrderQueueFlow(orderQueue, stallQueue);
+        }
+        else if (choice == 7) {
             stallQueue.displayStallStatus();
             stallQueue.displayAssignmentHistory();
             waitForMenu();
         }
-        else if (choice == 5) {
+        else if (choice == 8) {
             std::cout << "\nExiting kiosk system. Thank you!\n";
         }
         else {
-            std::cout << "Invalid choice. Please enter a number between 1 and 5.\n";
+            std::cout << "Invalid choice. Please enter a number between 1 and 8.\n";
         }
 
-    } while (choice != 5);
+    } while (choice != 8);
 
     return 0;
 }

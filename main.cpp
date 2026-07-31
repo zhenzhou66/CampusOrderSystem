@@ -19,10 +19,22 @@ void clearScreen() {
 #endif
 }
 
-// Wait for the user to press 'F' before returning to the main menu
+// Wait for the user to press 'F' before returning to the main menu.
+// Self-healing: if std::cin is already in a fail state (e.g. an earlier
+// unvalidated numeric read choked on non-numeric input), a plain
+// std::cin >> here would fail instantly forever, printing this prompt in
+// an infinite loop without ever waiting for real input. Clearing the
+// stream and dropping any leftover garbage before each read prevents that.
 void waitForMenu() {
     char input = ' ';
     do {
+        if (std::cin.fail()) {
+            // Recovering from a broken stream: clear the error flag and
+            // discard the garbage token that caused it, otherwise every
+            // read below would keep failing instantly with no way out.
+            std::cin.clear();
+            std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
+        }
         std::cout << "\nEnter 'F' to go back to main menu: ";
         std::cin >> input;
     } while (input != 'F' && input != 'f');
@@ -115,13 +127,13 @@ double readValidatedPrice(const std::string& prompt) {
     }
 }
 
-// --- Place an Order sub-page ---
+// Place an Order sub-page 
 // Step IDs for the wizard. Each SessionStep pushed here carries its stepId
 // so goBack()/goForward() can tell main() which page to redraw.
 const int STEP_MENU = 0;        // shows the menu AND asks for the food choice
 const int STEP_STUDENT_ID = 1;  // asks for the TP number, then places the order
 
-// --- Menu Management sub-page step IDs (separate range so they never
+//  Menu Management sub-page step IDs (separate range so they never
 // collide with the Place Order flow's step IDs above - both flows push
 // onto the same shared SessionHistoryStack). ---
 const int STEP_MGMT_HOME = 10;    // the Add/Remove/Update/Display submenu
@@ -229,7 +241,7 @@ void runPlaceOrderFlow(MenuBST& menu, OrderQueue& orderQueue,
     }
 }
 
-// --- Order Queue management sub-page ---
+// Order Queue management sub-page 
 // Shows pending & completed orders, then lets the user process the next
 // order ('P') or return to the main menu ('F').
 void runOrderQueueFlow(OrderQueue& orderQueue, StallCircularQueue& stallQueue) {
@@ -273,7 +285,7 @@ void runOrderQueueFlow(OrderQueue& orderQueue, StallCircularQueue& stallQueue) {
     } while (input != 'F' && input != 'f');
 }
 
-// --- Menu Management sub-page (Menu BST + Session History Stack) ---
+// Menu Management sub-page (Menu BST + Session History Stack) 
 // A submenu with its own back/forward navigation, wired into the SAME
 // SessionHistoryStack the Place Order flow uses - same pattern:
 //   'b' at the home page  -> leave this flow, return to main menu
@@ -465,7 +477,7 @@ void runMenuManagementFlow(MenuBST& menu, SessionHistoryStack& sessionHistory) {
 }
 
 int main() {
-    // --- Setup Phase ---
+    // Setup Phase 
     OrderQueue orderQueue(100);
     SessionHistoryStack sessionHistory(50);
     MenuBST menu;
@@ -499,13 +511,10 @@ int main() {
         std::cout << "4. Order Queue (View & Process Orders)\n";
         std::cout << "5. View Stall Status History\n";
         std::cout << "6. Exit System\n";
-        std::cout << "Enter your choice: ";
-        std::cin >> choice;
+        choice = readValidatedInt("Enter your choice: ");
 
         if (choice == 1) {
-            int id;
-            std::cout << "Enter Item ID to search: ";
-            std::cin >> id;
+            int id = readValidatedInt("Enter Item ID to search: ");
             MenuItem* found = menu.searchById(id);
             if (found != nullptr) {
                 std::cout << "-> Found: " << found->name << " (" << found->stall << ") - RM " << found->price << "\n";

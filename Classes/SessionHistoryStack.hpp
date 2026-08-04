@@ -4,13 +4,33 @@
 #include <iostream>
 #include <string>
 
+// What kind of menu-editing action a step represents, so it can be
+// reversed later. NONE means the step is just a navigation/log entry
+// (e.g. a wizard page or a search) with nothing to undo.
+enum class UndoAction { NONE, ADDED, REMOVED, UPDATED };
+
 struct SessionStep {
     std::string description;   // e.g. "Selected Item #12", "Viewed Menu"
-    int stepId;                 // which wizard "page" this step represents
-                                 // (-1 = not tied to a specific page, just a log entry)
+    int stepId;                 
+    UndoAction undoAction;
+    int itemId;
+    std::string itemName;
+    std::string itemStall;
+    double itemPrice;
 
-    SessionStep() : description(""), stepId(-1) {}
-    SessionStep(const std::string& desc, int id = -1) : description(desc), stepId(id) {}
+    SessionStep()
+        : description(""), stepId(-1), undoAction(UndoAction::NONE),
+          itemId(0), itemName(""), itemStall(""), itemPrice(0.0) {}
+
+    SessionStep(const std::string& desc, int id = -1)
+        : description(desc), stepId(id), undoAction(UndoAction::NONE),
+          itemId(0), itemName(""), itemStall(""), itemPrice(0.0) {}
+
+    // Constructor for undo-capable steps (menu management edits).
+    SessionStep(const std::string& desc, UndoAction action, int id,
+                const std::string& name, const std::string& stall, double price)
+        : description(desc), stepId(-1), undoAction(action),
+          itemId(id), itemName(name), itemStall(stall), itemPrice(price) {}
 };
 
 struct StepNode {
@@ -26,11 +46,6 @@ private:
     int count;
     int maxSteps;          // optional cap ("exceeding session limits")
 
-    // Second stack holding steps that were undone via goBack(), so goForward()
-    // can redo them - same idea as a browser's forward button.
-    StepNode* forwardTopPtr;
-    int forwardCount;
-
 public:
     explicit SessionHistoryStack(int limit = 50);
     ~SessionHistoryStack();
@@ -39,20 +54,13 @@ public:
     SessionHistoryStack(const SessionHistoryStack&) = delete;
     SessionHistoryStack& operator=(const SessionHistoryStack&) = delete;
 
-    // Pushes a new step. Also clears the forward stack, since taking a new
-    // action invalidates whatever "forward" branch existed before (same as
-    // a browser: visiting a new page clears the forward history).
+    // Pushes a new step onto the stack.
     void recordStep(const SessionStep& step);
 
-    // Moves one step back: pops the current step onto the forward stack and
-    // returns the step that is now current (the new top of the back stack).
+    // Pops the current step and returns the step that is now current
     SessionStep goBack();
 
-    // Moves one step forward again: pops from the forward stack back onto
-    // the main stack and returns it as the new current step.
-    SessionStep goForward();
-
-    bool canGoForward() const;
+    SessionStep peekTop() const;
 
     bool isEmpty() const;
 };

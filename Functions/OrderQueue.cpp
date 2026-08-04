@@ -1,6 +1,8 @@
 #include "../Classes/OrderQueue.hpp"
 #include <iostream>
 
+using namespace std;
+
 // ============================================================
 // Order Queue Management - implementation
 // ============================================================
@@ -25,7 +27,7 @@ OrderQueue::~OrderQueue() {
 
 bool OrderQueue::enqueue(const Order& newOrder) {
     if (isFull()) {
-        std::cout << "[OrderQueue] Cannot accept order #" << newOrder.orderId
+        cout << "[OrderQueue] Cannot accept order #" << newOrder.orderId
                    << " - system at peak capacity (" << maxCapacity << ").\n";
         return false;
     }
@@ -44,7 +46,7 @@ bool OrderQueue::enqueue(const Order& newOrder) {
 
 Order OrderQueue::dequeue() {
     if (isEmpty()) {
-        std::cout << "[OrderQueue] No pending orders to process.\n";
+        cout << "[OrderQueue] No pending orders to process.\n";
         return Order(); // sentinel order (orderId 0)
     }
 
@@ -63,7 +65,7 @@ Order OrderQueue::dequeue() {
 
 Order OrderQueue::peekFront() const {
     if (isEmpty()) {
-        std::cout << "[OrderQueue] Queue is empty.\n";
+        cout << "[OrderQueue] Queue is empty.\n";
         return Order();
     }
     return frontPtr->data;
@@ -94,31 +96,31 @@ void OrderQueue::markCompleted(const Order& finishedOrder) {
 }
 
 void OrderQueue::displayPending() const {
-    std::cout << "--- Pending Orders (" << count << ") ---\n";
+    cout << "--- Pending Orders (" << count << ") ---\n";
     if (isEmpty()) {
-        std::cout << "  (no pending orders)\n";
+        cout << "  (no pending orders)\n";
         return;
     }
     OrderNode* current = frontPtr;
     while (current != nullptr) {
-        std::cout << "  Order #" << current->data.orderId
-                   << " | Student: " << current->data.studentId
-                   << " | Item ID: " << current->data.itemId << "\n";
+        cout << "  Order #" << current->data.orderId
+             << " | Student: " << current->data.studentId
+             << " | Item ID: " << current->data.itemId << "\n";
         current = current->next;
     }
 }
 
 void OrderQueue::displayCompleted() const {
-    std::cout << "--- Completed Orders (" << completedCount << ") ---\n";
+    cout << "--- Completed Orders (" << completedCount << ") ---\n";
     if (completedFront == nullptr) {
-        std::cout << "  (no completed orders yet)\n";
+        cout << "  (no completed orders yet)\n";
         return;
     }
     OrderNode* current = completedFront;
     while (current != nullptr) {
-        std::cout << "  Order #" << current->data.orderId
-                   << " | Student: " << current->data.studentId
-                   << " | Stall: " << current->data.stallName << "\n";
+        cout << "  Order #" << current->data.orderId
+             << " | Student: " << current->data.studentId
+             << " | Stall: " << current->data.stallName << "\n";
         current = current->next;
     }
 }
